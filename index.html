@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2026·10·30 币安安全事件深度复盘：瑞士奶酪模型（Swiss Cheese Model）全景解析笔记</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', '"Noto Sans SC"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            binance: {
+              yellow: '#F0B90B',
+              amber: '#FCD535',
+              dark: '#0B0E14',
+              card: '#151A24',
+              border: '#262E3D'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+    .cheese-slice {
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .cheese-slice:hover {
+      transform: translateY(-3px);
+    }
+    .laser-beam {
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.9; filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); }
+      50% { opacity: 0.55; filter: drop-shadow(0 0 14px rgba(239, 68, 68, 1)); }
+    }
+    .laser-active {
+      animation: pulseGlow 2s infinite;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); }
+    ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.5); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(240, 185, 11, 0.7); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-[#0B0E14] dark:text-slate-100 min-h-screen transition-colors duration-300">
+
+  <!-- Sticky Top Navigation -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-white/85 dark:bg-[#0B0E14]/90 border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-lg bg-amber-400/20 border border-amber-400/50 flex items-center justify-center shrink-0">
+          <span class="text-amber-500 dark:text-amber-400 font-extrabold text-lg">🧀</span>
+        </div>
+        <div class="truncate">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm sm:text-base tracking-tight truncate">2026·10·30 币安安全事件 · 瑞士奶酪模型精读笔记</span>
+            <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30">
+              DPRK 高级持续性威胁 (APT)
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">基于 2026年11月3日 官方初步调查报告 · 7层防御穿透机制与技术图解</p>
+        </div>
+      </div>
+
+      <!-- Nav Links -->
+      <nav class="hidden lg:flex items-center gap-1 text-xs font-medium">
+        <a href="#sec-overview" class="px-3 py-1.5 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">核心概览</a>
+        <a href="#sec-cheese" class="px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition">🧀 瑞士奶酪推演</a>
+        <a href="#sec-tech" class="px-3 py-1.5 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">三大技术解剖</a>
+        <a href="#sec-timeline" class="px-3 py-1.5 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">五个月全时间轴</a>
+        <a href="#sec-assets" class="px-3 py-1.5 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">受损资产大盘</a>
+        <a href="#sec-remediation" class="px-3 py-1.5 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">防线加固矩阵</a>
+      </nav>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-eli5-toggle" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition flex items-center gap-1.5" title="切换通俗比喻高亮">
+          <span>💡</span>
+          <span id="eli5-label">大白话解读：开启</span>
+        </button>
+        <button id="btn-theme-toggle" type="button" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm" title="切换深色/浅色模式">
+          <span id="theme-icon">☀️</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+    <!-- HERO & EXECUTIVE SUMMARY -->
+    <section id="sec-overview" class="space-y-6">
+      <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-amber-50/40 dark:from-[#131822] dark:via-[#0F141C] dark:to-[#1A1612] p-6 sm:p-8 shadow-lg">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div class="space-y-4 max-w-3xl">
+            <div class="inline-flex flex-wrap items-center gap-2">
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                事故模型：James Reason 瑞士奶酪模型 (Swiss Cheese Model)
+              </span>
+              <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                事发时间：2026-10-30 (UTC+8)
+              </span>
+              <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                FBI 溯源归因：朝鲜 (DPRK)
+              </span>
+            </div>
+
+            <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+              为什么拦截了 57 次攻击，第 58 次却被盗走 <span class="text-amber-500 dark:text-amber-400">63.4 亿美元</span>？
+            </h1>
+
+            <p class="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
+              2026年10月30日，币安遭遇了加密货币历史上极其罕见的多阶段复合型安全事件。这并非单一的“钓鱼邮件”或“私钥泄露”，而是一场横跨 <strong>5个月（6月—10月）</strong>、先后攻陷 <strong>3名核心工程师（A、B、C）</strong>、串联 <strong>供应链投毒 + 深度伪造双轮招聘面试 + 0-day 劫持 pyenv + 内部 AI 工具跳板 + 容器令牌窃取 + 签名服务越权 + 以太坊 EIP-7702 链上委托授权</strong> 的系统性穿透。
+            </p>
+
+            <!-- ELI5 Banner -->
+            <div class="eli5-box rounded-xl p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm leading-relaxed">
+              <div class="font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 mb-1">
+                <span>💡 一句话大白话总结（通俗版）：</span>
+              </div>
+              可以把币安的金库防线想象成 <strong>7片叠在一起的瑞士奶酪</strong>。每片奶酪都很厚，但都有几个小孔（漏洞）。平时小孔错开，小偷进不去（所以今年前57次朝鲜黑客攻击全被挡住了）。但这次，黑客花了5个月时间：<strong>6月份先偷看了一眼“金库管理员名单”（第1层孔洞），9月份假装猎头给员工B安排了两轮假面试、哄骗他在办公电脑装了带毒作业（第2、3层孔洞），10月份顺着公司内部AI工具爬到了员工A和C的电脑上偷走部署令牌（第4、5层孔洞），最后在10月30日凌晨绕过提现柜台直接调用签名机（第6层孔洞），还利用以太坊新规矩（EIP-7702）给热钱包绑了个“自动抽水泵”，哪怕币安关掉提现总闸也停不下来，足足抽了4个小时才被MPC特殊流程彻底斩断（第7层孔洞）！</strong>
+            </div>
+          </div>
+
+          <!-- Right Quick Theory Card -->
+          <div class="lg:w-80 shrink-0 rounded-xl bg-white/90 dark:bg-[#161C28] border border-slate-200 dark:border-slate-700/80 p-5 space-y-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">核心理论框架</span>
+              <span class="text-xs text-slate-400">Reason (1990)</span>
+            </div>
+            <h3 class="font-bold text-base">什么是“瑞士奶酪模型”？</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              由英国曼彻斯特大学教授 James Reason 提出。任何复杂高危系统（航空、核电、头部交易所）都依赖多层防御。但每层防御都不是实心钢板，而是带有“孔洞”的瑞士奶酪：
+            </p>
+            <ul class="text-xs space-y-2 text-slate-600 dark:text-slate-300">
+              <li class="flex items-start gap-2">
+                <span class="text-amber-500 font-bold">●</span>
+                <span><strong>隐性失效 (Latent Conditions)：</strong>架构设计、长效Token留存、内部AI工具权限过大、MPC撤销机制未预设快速通道等“早已存在的孔洞”。</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-red-500 font-bold">●</span>
+                <span><strong>显性失误 (Active Failures)：</strong>工程师A搜索下载篡改版Homebrew、工程师B在工作电脑运行面试作业代码等“一线触发动作”。</span>
+              </li>
+            </ul>
+            <div class="pt-2 border-t border-slate-200 dark:border-slate-700/70 text-[11px] text-slate-500 dark:text-slate-400">
+              当<strong>隐性孔洞</strong>与<strong>显性失误</strong>在特定时刻排成一条直线，风险便毫无阻拦地演变为重大事故。
+            </div>
+          </div>
+        </div>
+
+        <!-- 6 Key Metric Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+          <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">涉案数字资产总额</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-red-500 mt-1">$63.4 亿</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">横跨 XRP/SOL/OP/BTC/ETH</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">已冻结 / 成功拦截</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-emerald-500 mt-1">$28.5 亿</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">拦截率约 44.95%（含合作伙伴）</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">用户资产赔付率</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-amber-500 mt-1">100% 兜底</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">10月31日已补足 98% 代币</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">2026年已拦截同源威胁</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-blue-500 mt-1">57 起</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">均疑似与朝鲜 (DPRK) 有关</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">攻击潜伏准备跨度</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-purple-500 mt-1">5 个月</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">2026年06月 至 10月30日</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800">
+            <div class="text-xs text-slate-500 dark:text-slate-400">链上权限失控窗口</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-orange-500 mt-1">4小时05分</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">04:05 首笔转出 → 08:10 清除授权</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 1: INTERACTIVE SWISS CHEESE MODEL SIMULATOR -->
+    <section id="sec-cheese" class="space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-amber-500 mb-1">核心分析模块 · Interactive Swiss Cheese Simulator</div>
+          <h2 class="text-xl sm:text-2xl font-extrabold">🧀 七层瑞士奶酪防线穿透推演台</h2>
+          <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            点击下方预设场景或直接点击任意一层“奶酪切片”，观察攻击激光如何在 7 层防御孔洞对齐时穿透金库，以及堵住任意一层孔洞如何改写结局。
+          </p>
+        </div>
+
+        <!-- Scenario Preset Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" id="preset-incident" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-red-500 text-white shadow-sm hover:bg-red-600 transition">
+            🔴 10·30 真实事故（7洞全齐·穿透）
+          </button>
+          <button type="button" id="preset-57" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition">
+            🛡️ 前57次成功防御（孔洞错位）
+          </button>
+          <button type="button" id="preset-remediated" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition">
+            ✅ 11·03 灾后重建（全层封堵）
+          </button>
+        </div>
+      </div>
+
+      <!-- Simulator Grid: Left Visual Stack + Right Layer Detail Inspector -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Left 7-Layer Interactive Stack (7 cols) -->
+        <div class="lg:col-span-7 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] p-5 sm:p-6 shadow-md space-y-4">
+          <!-- Status Banner inside Simulator -->
+          <div id="sim-status-banner" class="rounded-xl p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-red-500/10 border-red-500/40">
+            <div class="flex items-center gap-3">
+              <div id="sim-status-icon" class="w-10 h-10 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center text-xl font-bold shrink-0">
+                ⚡
+              </div>
+              <div>
+                <div id="sim-status-title" class="font-bold text-sm sm:text-base text-red-600 dark:text-red-400">
+                  警报：7 层防御孔洞完全对齐！攻击激光直穿热钱包核心！
+                </div>
+                <div id="sim-status-desc" class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  穿透深度：7 / 7 层 | 造成后果：63.4亿美元资产涉案（其中28.5亿美元被紧急冻结拦截）
+                </div>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <span id="sim-badge" class="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-red-500 text-white">
+                防线击穿 (BREACHED)
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
+            <span>👆 点击任意奶酪层查看右侧深度笔记；点击右侧开关可测试“假如堵住这一层”</span>
+            <span id="open-holes-counter" class="font-mono font-semibold text-amber-500">当前开启孔洞: 7/7</span>
+          </div>
+
+          <!-- The 7 Cheese Layers Container -->
+          <div id="cheese-stack-container" class="space-y-2.5 relative">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </div>
+
+        <!-- Right Layer Deep-Dive Inspector (5 cols) -->
+        <div class="lg:col-span-5 lg:sticky lg:top-20 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] p-5 sm:p-6 shadow-md space-y-5">
+          <div class="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="detail-layer-num" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                  第 1 层奶酪
+                </span>
+                <span id="detail-date" class="text-xs font-mono text-slate-500 dark:text-slate-400">2026年06月</span>
+              </div>
+              <h3 id="detail-title" class="text-lg sm:text-xl font-extrabold mt-1.5">供应链与外源工具获取防线</h3>
+            </div>
+            <button id="btn-toggle-current-hole" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition shrink-0">
+              切换孔洞状态
+            </button>
+          </div>
+
+          <!-- Hole Type & Actors -->
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800">
+              <div class="text-slate-400">失效类型 (Reason分类)</div>
+              <div id="detail-failure-type" class="font-bold text-amber-500 mt-0.5">显性失误 + 隐性情报暴露</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800">
+              <div class="text-slate-400">涉及关键角色 / 载体</div>
+              <div id="detail-actor" class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">钱包开发运维工程师 A</div>
+            </div>
+          </div>
+
+          <!-- Detailed Sections -->
+          <div class="space-y-3.5 text-xs sm:text-sm">
+            <div class="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/25">
+              <div class="font-bold text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1.5">
+                <span>🛡️ 原本的奶酪防线（正常防御机制）：</span>
+              </div>
+              <p id="detail-defense" class="text-slate-700 dark:text-slate-300 leading-relaxed"></p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25">
+              <div class="font-bold text-red-600 dark:text-red-400 mb-1 flex items-center gap-1.5">
+                <span>🕳️ 奶酪上的孔洞（为什么被穿透？）：</span>
+              </div>
+              <p id="detail-hole" class="text-slate-700 dark:text-slate-300 leading-relaxed"></p>
+            </div>
+
+            <div class="eli5-box p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+              <div class="font-bold text-emerald-700 dark:text-emerald-400 mb-1 flex items-center gap-1.5">
+                <span>💡 通俗大白话比喻：</span>
+              </div>
+              <p id="detail-analogy" class="text-slate-700 dark:text-slate-300 leading-relaxed"></p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/25">
+              <div class="font-bold text-purple-700 dark:text-purple-400 mb-1 flex items-center gap-1.5">
+                <span>🔧 币安灾后封堵措施（11月3日更新）：</span>
+              </div>
+              <p id="detail-fix" class="text-slate-700 dark:text-slate-300 leading-relaxed"></p>
+            </div>
+          </div>
+
+          <!-- Layer Prev/Next Navigation -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button id="btn-prev-layer" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+              ← 上一层防线
+            </button>
+            <span id="detail-step-indicator" class="text-xs font-mono text-slate-400">1 / 7</span>
+            <button id="btn-next-layer" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 hover:bg-amber-400 transition">
+              下一层防线 →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 2: THREE CORE TECHNICAL DEEP-DIVES -->
+    <section id="sec-tech" class="space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-amber-500 mb-1">硬核技术通俗图解 · Technical Deep-Dive Lab</div>
+          <h2 class="text-xl sm:text-2xl font-extrabold">🔬 三大核心技术解剖室：攻击者到底是怎么得手的？</h2>
+          <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            报告正文中披露了三个极其关键的技术细节：<strong>A/B/C 三名工程师的接力沦陷</strong>、<strong>pyenv 仅差 70 字节的静默劫持</strong>、以及 <strong>EIP-7702 链上委托与 MPC 撤销死锁</strong>。点击下方选项卡逐一拆解：
+          </p>
+        </div>
+
+        <!-- Tech Tabs -->
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-tech-tab="tab-abc" class="tech-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 shadow-sm transition">
+            1️⃣ 工程师 A→B→C 渗透拓扑图
+          </button>
+          <button type="button" data-tech-tab="tab-pyenv" class="tech-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition">
+            2️⃣ pyenv 3,414字节调包重放
+          </button>
+          <button type="button" data-tech-tab="tab-eip7702" class="tech-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition">
+            3️⃣ EIP-7702 授权与 MPC 困局
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 1: Engineer A, B, C Topology -->
+      <div id="tab-abc" class="tech-tab-panel rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] p-5 sm:p-7 shadow-md space-y-6">
+        <div class="flex flex-col lg:flex-row justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div>
+            <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-500">疑点解答</span>
+            <h3 class="text-lg sm:text-xl font-bold mt-1">为什么 6 月份已经给工程师 A 换了电脑、重置了密码，A 最终还是成了核心突破口？</h3>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 lg:max-w-md">
+            很多读者初看报告会困惑：既然 6 月份安全团队已经主动发现工程师 A 中招并换了电脑，为什么 10 月份又从 A 电脑上偷走了令牌？答案在于<strong>“情报泄露 → 迂回包抄 → AI跳板回流”</strong>。
+          </p>
+        </div>
+
+        <!-- SVG Topology Diagram -->
+        <div class="w-full overflow-x-auto bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <svg viewBox="0 0 960 320" class="w-full min-w-[720px] h-auto">
+            <defs>
+              <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#EF4444" />
+              </marker>
+              <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#F59E0B" />
+              </marker>
+              <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#A855F7" />
+              </marker>
+            </defs>
+
+            <!-- Background Stage Columns -->
+            <rect x="15" y="15" width="215" height="290" rx="12" fill="#1E293B" fill-opacity="0.45" stroke="#334155" />
+            <text x="122" y="40" text-anchor="middle" fill="#94A3B8" font-size="12" font-weight="bold">第一阶段：2026年06月 (侦察)</text>
+
+            <rect x="250" y="15" width="225" height="290" rx="12" fill="#1E293B" fill-opacity="0.45" stroke="#334155" />
+            <text x="362" y="40" text-anchor="middle" fill="#94A3B8" font-size="12" font-weight="bold">第二阶段：2026年09月 (突破口)</text>
+
+            <rect x="495" y="15" width="220" height="290" rx="12" fill="#1E293B" fill-opacity="0.45" stroke="#334155" />
+            <text x="605" y="40" text-anchor="middle" fill="#94A3B8" font-size="12" font-weight="bold">第三阶段：10月20日 (AI跳板横向)</text>
+
+            <rect x="735" y="15" width="210" height="290" rx="12" fill="#1E293B" fill-opacity="0.45" stroke="#334155" />
+            <text x="840" y="40" text-anchor="middle" fill="#94A3B8" font-size="12" font-weight="bold">第四阶段：10月30日 (致命一击)</text>
+
+            <!-- Node 1: Engineer A (June) -->
+            <rect x="30" y="65" width="185" height="95" rx="10" fill="#0F172A" stroke="#F59E0B" stroke-width="2" />
+            <text x="122" y="90" text-anchor="middle" fill="#FBBF24" font-size="13" font-weight="bold">👨‍💻 工程师 A (钱包DevOps)</text>
+            <text x="122" y="112" text-anchor="middle" fill="#E2E8F0" font-size="11">搜索下载篡改版 Homebrew</text>
+            <text x="122" y="130" text-anchor="middle" fill="#10B981" font-size="10">✓ 安全团队发现并换机/重置凭证</text>
+            <text x="122" y="148" text-anchor="middle" fill="#F87171" font-size="10" font-weight="bold">✗ 暴露自身岗位与钱包同事名单</text>
+
+            <!-- Node 2: Engineer B (Sept) -->
+            <rect x="268" y="65" width="190" height="115" rx="10" fill="#0F172A" stroke="#EF4444" stroke-width="2" />
+            <text x="363" y="90" text-anchor="middle" fill="#F87171" font-size="13" font-weight="bold">👨‍💻 软件工程师 B</text>
+            <text x="363" y="110" text-anchor="middle" fill="#E2E8F0" font-size="11">求职平台写有币安工作经历</text>
+            <text x="363" y="128" text-anchor="middle" fill="#CBD5E1" font-size="10">1面：假HR实时视频 + 社媒生活照</text>
+            <text x="363" y="145" text-anchor="middle" fill="#CBD5E1" font-size="10">2面：假CEO聊天软件发“代码作业”</text>
+            <text x="363" y="164" text-anchor="middle" fill="#EF4444" font-size="10" font-weight="bold">⚡ 0-day 替换 pyenv 攻陷工作电脑</text>
+
+            <!-- Node 3: Internal AI Tool (Oct 20) -->
+            <rect x="515" y="58" width="180" height="68" rx="10" fill="#2E1065" stroke="#A855F7" stroke-width="2" />
+            <text x="605" y="82" text-anchor="middle" fill="#D8B4FE" font-size="13" font-weight="bold">🤖 内部 AI 工具 (跳板)</text>
+            <text x="605" y="100" text-anchor="middle" fill="#E9D5FF" font-size="10">被攻击者滥用为内网横向跳板</text>
+            <text x="605" y="116" text-anchor="middle" fill="#F87171" font-size="10">反向渗透 A(新电脑) 与 C 的设备</text>
+
+            <!-- Node 4A & 4C under Oct 20 -->
+            <rect x="515" y="145" width="180" height="65" rx="8" fill="#0F172A" stroke="#F59E0B" stroke-width="1.5" />
+            <text x="605" y="166" text-anchor="middle" fill="#FBBF24" font-size="12" font-weight="bold">👨‍💻 工程师 A 的新设备</text>
+            <text x="605" y="184" text-anchor="middle" fill="#F87171" font-size="10" font-weight="bold">🔑 被窃取：容器部署权限令牌</text>
+            <text x="605" y="200" text-anchor="middle" fill="#94A3B8" font-size="9">(6月暴露了身份，10月被精准定位)</text>
+
+            <rect x="515" y="225" width="180" height="60" rx="8" fill="#0F172A" stroke="#38BDF8" stroke-width="1.5" />
+            <text x="605" y="247" text-anchor="middle" fill="#38BDF8" font-size="12" font-weight="bold">👨‍💻 钱包软件工程师 C</text>
+            <text x="605" y="266" text-anchor="middle" fill="#E2E8F0" font-size="10">终端设备同步被攻击者控制</text>
+
+            <!-- Node 5: Final Execution (Oct 30) -->
+            <rect x="750" y="75" width="180" height="115" rx="10" fill="#450A0A" stroke="#EF4444" stroke-width="2" />
+            <text x="840" y="100" text-anchor="middle" fill="#FCA5A5" font-size="13" font-weight="bold">🚀 01:15–03:56 致命渗透</text>
+            <text x="840" y="120" text-anchor="middle" fill="#FECACA" font-size="10">登录【工程师 C】的电脑</text>
+            <text x="840" y="138" text-anchor="middle" fill="#FECACA" font-size="10">使用【工程师 A】的容器令牌</text>
+            <text x="840" y="156" text-anchor="middle" fill="#FDE047" font-size="10" font-weight="bold">部署恶意容器 → 控制钱包签名服务</text>
+            <text x="840" y="174" text-anchor="middle" fill="#FCA5A5" font-size="10">04:05 发起多链转账 &amp; EIP-7702</text>
+
+            <!-- Arrows -->
+            <path d="M 215 112 L 262 112" stroke="#F59E0B" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-amber)" />
+            <text x="238" y="102" text-anchor="middle" fill="#FBBF24" font-size="9">提供目标情报</text>
+
+            <path d="M 458 112 L 508 92" stroke="#EF4444" stroke-width="2.5" marker-end="url(#arrow-red)" />
+            <path d="M 605 126 L 605 140" stroke="#A855F7" stroke-width="2" marker-end="url(#arrow-purple)" />
+            <path d="M 550 126 L 535 220" stroke="#A855F7" stroke-width="2" marker-end="url(#arrow-purple)" />
+
+            <path d="M 695 175 L 744 135" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrow-amber)" />
+            <path d="M 695 255 L 744 155" stroke="#EF4444" stroke-width="2" marker-end="url(#arrow-red)" />
+          </svg>
+        </div>
+
+        <!-- 3 Takeaway Cards for Topology -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <div class="font-bold text-amber-500 mb-1">🎯 1. 为什么工程师 A 被二次盯上？</div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              6月份虽然换了A的电脑，但攻击者已经拿到了<strong>“A是钱包DevOps，且手里有核心权限”</strong>的组织架构图。9月攻破工程师B后，攻击者不需要盲目扫内网，而是直奔工程师A和钱包团队同事C！
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <div class="font-bold text-purple-500 mb-1">🤖 2. 内部 AI 工具为何成了帮凶？</div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              现代研发团队普遍部署内部AI编程/运维助手。工程师B只是普通软件工程师，本无钱包权限；但通过入侵<strong>内部AI工具</strong>，攻击者实现了跨部门权限跨越，一次性控制了钱包团队A和C两台高价值终端。
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <div class="font-bold text-red-500 mb-1">🎭 3. 为什么要“用C的电脑 + A的令牌”？</div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              10月30日凌晨01:15，攻击者登录<strong>工程师C</strong>的电脑，却使用从<strong>工程师A</strong>窃取的容器部署Token。这种“借刀杀人/交叉混用”既能规避针对A设备的单点监控，又暴露了生产Token未与特定硬件设备强绑定的漏洞。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: pyenv Malware Replay -->
+      <div id="tab-pyenv" class="tech-tab-panel hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] p-5 sm:p-7 shadow-md space-y-6">
+        <div class="flex flex-col lg:flex-row justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div>
+            <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-red-500/20 text-red-500">零日恶意软件拆解</span>
+            <h3 class="text-lg sm:text-xl font-bold mt-1">仅多出 70 字节的伪装术：攻击者如何劫持 `/opt/homebrew/.../pyenv`？</h3>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button id="btn-replay-pyenv" type="button" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 transition">
+              ▶️ 逐步重放恶意脚本执行过程
+            </button>
+            <button id="btn-reset-pyenv" type="button" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition">
+              显示全部步骤
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <!-- Left Terminal Window (7 cols) -->
+          <div class="lg:col-span-7 rounded-xl overflow-hidden bg-[#090D16] border border-slate-800 shadow-inner font-mono text-xs">
+            <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span class="ml-2 text-slate-400">engineer_b@macbook-pro: /opt/homebrew/Cellar/pyenv/2.8.0</span>
+              </div>
+              <span class="text-[11px] text-red-400">0-Day Obfuscated Loader</span>
+            </div>
+            <div id="pyenv-terminal-steps" class="p-4 space-y-3">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Right Explanation (5 cols) -->
+          <div class="lg:col-span-5 space-y-4 text-xs sm:text-sm">
+            <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <h4 class="font-bold text-amber-600 dark:text-amber-400 mb-1">🔍 为什么终端安全软件（EDR）当时没报警？</h4>
+              <ul class="space-y-2 text-slate-700 dark:text-slate-300 list-disc pl-4">
+                <li><strong>寄生在合法开发者工具中：</strong>`pyenv` 是 Mac 程序员每天都在运行的 Python 版本管理工具，本身就会频繁调用 shell 和脚本。</li>
+                <li><strong>极小体积差异（3,344 B → 3,414 B）：</strong>合法的 `pyenv` 大小是 `3,344` 字节，篡改后的恶意版本是 `3,414` 字节，<strong>仅仅增加了 70 个字节</strong>！这说明它只注入了一行极其精简的混淆加载器指令。</li>
+                <li><strong>先建临时文件再原子重命名：</strong>先创建 `pyenv_`，删除原版 `pyenv`，再把 `pyenv_` 改名为 `pyenv` 并重建 `/opt/homebrew/bin/pyenv` 软链接，最后拉起 `zsh` 会话回连外部 C2 服务器并抹除痕迹。</li>
+              </ul>
+            </div>
+
+            <div class="eli5-box p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+              <div class="font-bold text-emerald-700 dark:text-emerald-400 mb-1">💡 大白话比喻：</div>
+              <p class="text-slate-700 dark:text-slate-300 leading-relaxed">
+                就像小偷没有撬门，而是趁工程师B在家里写“面试作业”时，把他办公桌上每天必用的<strong>“正品公章（3,344克）”</strong>悄悄换成了一个<strong>“外观一模一样但底部藏着微型窃听器的假公章（3,414克，只重了70克）”</strong>。保安（杀毒软件）巡逻时看到桌子上还是那个熟悉的公章，完全没起疑心！
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: EIP-7702 & MPC Paradox -->
+      <div id="tab-eip7702" class="tech-tab-panel hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] p-5 sm:p-7 shadow-md space-y-6">
+        <div class="flex flex-col lg:flex-row justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div>
+            <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-purple-500/20 text-purple-400">链上攻防核心机制</span>
+            <h3 class="text-lg sm:text-xl font-bold mt-1">为什么“暂停提现 + 关停热钱包服务”依然止不住血？EIP-7702 与 MPC 的双重困局</h3>
+          </div>
+          <div class="flex flex-wrap gap-2 shrink-0">
+            <button type="button" data-eip-stage="1" class="eip-stage-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white">
+              阶段1：50笔交易建立EIP-7702恶意委托
+            </button>
+            <button type="button" data-eip-stage="2" class="eip-stage-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              阶段2：关停提现为何无效 + MPC困局
+            </button>
+            <button type="button" data-eip-stage="3" class="eip-stage-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              阶段3：08:10 空地址授权清除后门
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Stage Display for EIP-7702 -->
+        <div id="eip-stage-content" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: DUAL-SCALE INTERACTIVE TIMELINE -->
+    <section id="sec-timeline" class="space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-amber-500 mb-1">全周期复盘 · Chronological Investigation</div>
+          <h2 class="text-xl sm:text-2xl font-extrabold">⏱️ 五个月潜伏与四小时惊魂：完整事件时间轴</h2>
+          <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            所有时间点严格对应官方公告（东八区时间 UTC+8），支持按阶段过滤：
+          </p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-tl-filter="all" class="tl-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 text-slate-950">
+            全部节点 (11)
+          </button>
+          <button type="button" data-tl-filter="prep" class="tl-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+            🕵️ 攻击准备期 (6月–10月20日)
+          </button>
+          <button type="button" data-tl-filter="attack" class="tl-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+            🔥 10月30日 攻防惊魂 (01:15–08:10)
+          </button>
+          <button type="button" data-tl-filter="recovery" class="tl-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+            🛡️ 赔付、追回与重建 (10月31日–11月3日)
+          </button>
+        </div>
+      </div>
+
+      <div id="timeline-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- SECTION 4: ASSETS & QUANTITATIVE DASHBOARD -->
+    <section id="sec-assets" class="space-y-6">
+      <div>
+        <div class="text-xs font-bold uppercase tracking-wider text-amber-500 mb-1">数据可视化 · Quantitative Breakdown</div>
+        <h2 class="text-xl sm:text-2xl font-extrabold">📊 涉案数字资产构成与拦截恢复大盘</h2>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          此次攻击在多条区块链网络（XRP Ledger、Solana、Optimism、Bitcoin、Ethereum）上迅速展开，总涉案价值约 <strong>63.4 亿美元</strong>。
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Chart 1: Financial Recovery Breakdown (5 cols) -->
+        <div class="lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] p-5 sm:p-6 shadow-md flex flex-col justify-between">
+          <div>
+            <h3 class="font-bold text-base sm:text-lg">💰 63.4 亿美元涉案资金状态拆解</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              约 28.5 亿美元已被冻结或拦截（具体金额受市场价格波动影响并持续核对中）；差额部分由币安自有超过100%的储备金全额承担。
+            </p>
+          </div>
+          <div class="relative h-64 my-4">
+            <canvas id="chart-funds"></canvas>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div class="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <div class="text-emerald-600 dark:text-emerald-400 font-bold">已冻结 / 拦截资产</div>
+              <div class="text-lg font-extrabold mt-0.5">$28.5 亿 (44.95%)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div class="text-amber-600 dark:text-amber-400 font-bold">币安储备金兜底敞口</div>
+              <div class="text-lg font-extrabold mt-0.5">$34.9 亿 (55.05%)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Table & Token Details (7 cols) -->
+        <div class="lg:col-span-7 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] p-5 sm:p-6 shadow-md space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-base sm:text-lg">⛓️ 多链受损资产与攻击手法明细表</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">按 10月30日 链上发生顺序整理</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+              截至10月31日已补足 98% 代币
+            </span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                  <th class="py-2.5 px-3 font-semibold">发生时间 (UTC+8)</th>
+                  <th class="py-2.5 px-3 font-semibold">区块链 / 资产</th>
+                  <th class="py-2.5 px-3 font-semibold text-right">未经授权转出数量</th>
+                  <th class="py-2.5 px-3 font-semibold">攻击路径与技术特征</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200/70 dark:divide-slate-800/80">
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td class="py-3 px-3 font-mono text-xs text-amber-500">04:05 – 04:09</td>
+                  <td class="py-3 px-3 font-bold">XRP (瑞波币)</td>
+                  <td class="py-3 px-3 font-mono font-bold text-right text-red-500">233,460,000 枚</td>
+                  <td class="py-3 px-3 text-xs text-slate-600 dark:text-slate-300">利用内部签名服务权限绕过提现流程，从 <strong>5个热钱包</strong> 集中转出</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td class="py-3 px-3 font-mono text-xs text-amber-500">04:09 前后</td>
+                  <td class="py-3 px-3 font-bold">SOL (Solana)</td>
+                  <td class="py-3 px-3 font-mono font-bold text-right text-red-500">~970,500 枚</td>
+                  <td class="py-3 px-3 text-xs text-slate-600 dark:text-slate-300">Solana 网络热钱包向攻击者控制地址转出</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td class="py-3 px-3 font-mono text-xs text-amber-500">04:09 前后</td>
+                  <td class="py-3 px-3 font-bold">OP (Optimism)</td>
+                  <td class="py-3 px-3 font-mono font-bold text-right text-red-500">44,200,000 枚</td>
+                  <td class="py-3 px-3 text-xs text-slate-600 dark:text-slate-300">Optimism 网络热钱包转出（后续协调合作伙伴大量冻结受影响代币）</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td class="py-3 px-3 font-mono text-xs text-amber-500">内部警报触发后</td>
+                  <td class="py-3 px-3 font-bold">BTC (比特币)</td>
+                  <td class="py-3 px-3 font-mono font-bold text-right text-red-500">18,270 枚</td>
+                  <td class="py-3 px-3 text-xs text-slate-600 dark:text-slate-300">币安收到大额转账内部警报并启动调查期间，热钱包向攻击者地址转入</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td class="py-3 px-3 font-mono text-xs text-amber-500">持续至 07:56</td>
+                  <td class="py-3 px-3 font-bold">ETH (以太坊)</td>
+                  <td class="py-3 px-3 font-mono font-bold text-right text-red-500">末笔 2,961.9 枚<br><span class="text-[11px] text-slate-400">(+50笔签名交易)</span></td>
+                  <td class="py-3 px-3 text-xs text-slate-600 dark:text-slate-300">提交50笔签名交易操纵 nonce 建立 <strong>EIP-7702</strong> 恶意委托；末笔于07:56最终确认，08:10 由 <code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-800">Binance14</code> 清除</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bar Chart of Token Quantities (Log/Normalized visual) -->
+          <div class="relative h-44 pt-2">
+            <canvas id="chart-tokens"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: REMEDIATION MATRIX & INDUSTRY LESSONS -->
+    <section id="sec-remediation" class="space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-amber-500 mb-1">防线重构与行业启示 · Defense-in-Depth Rebuild</div>
+          <h2 class="text-xl sm:text-2xl font-extrabold">🛡️ 币安 8+3 应对措施如何修补每一层瑞士奶酪？</h2>
+          <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            截至 2026年11月03日，币安已执行 8 项紧急重建措施，并宣布 3 项长期行动计划。我们将它们与瑞士奶酪的孔洞逐一对应：
+          </p>
+        </div>
+
+        <!-- Search/Filter input -->
+        <div class="w-full md:w-72">
+          <input id="remediation-search" type="text" placeholder="🔍 搜索措施关键词（如 AI、MPC、凭证）..." class="w-full px-3.5 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-amber-500" />
+        </div>
+      </div>
+
+      <div id="remediation-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- 3 Future Strategic Actions Banner -->
+      <div class="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-slate-900/40 to-blue-500/10 p-6 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h3 class="text-base sm:text-lg font-extrabold flex items-center gap-2">
+            <span>🚀</span>
+            <span>后续三大战略行动（从单点修补走向行业联防）</span>
+          </h3>
+          <span class="text-xs text-slate-500 dark:text-slate-400">对应报告“后续行动”章节</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+          <div class="p-4 rounded-xl bg-white/80 dark:bg-[#121721]/90 border border-slate-200 dark:border-slate-800 space-y-1.5">
+            <div class="font-bold text-amber-500">1. 开展独立网络安全审查</div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              邀请独立第三方网络安全专家全面审查事件、验证调查结果并提出改进建议，防止内部视角盲区（消除隐性失效孔洞）。
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-white/80 dark:bg-[#121721]/90 border border-slate-200 dark:border-slate-800 space-y-1.5">
+            <div class="font-bold text-blue-500">2. 扩大对 AI 安全与预防的投入</div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              一方面用 AI 驱动威胁检测、终端防护、开发环境安全与行为异常监控；另一方面严防内部 AI 工具本身被攻击者当成横向跳板。
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-white/80 dark:bg-[#121721]/90 border border-slate-200 dark:border-slate-800 space-y-1.5">
+            <div class="font-bold text-emerald-500">3. 设立安全研究基金并推动行业合作</div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              与领先 AI 公司、行业参与者及安全机构合作筹备安全研究基金，开展聚焦“区块链环境中 AI 安全”的专项计划。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400 space-y-2">
+    <p>本交互式分析笔记严格依据《2026年10月30日币安安全事件：调查初步发现与应对进展更新》（@binancezh）正文整理制作。</p>
+    <p>安全工程核心启示：永远不要假设任何单一防线（EDR、内部AI工具、MPC或暂停提现开关）是绝对安全的；纵深防御的关键在于让各层“奶酪孔洞”永远无法同时对齐。</p>
+  </footer>
+
+  <script>
+    // ==========================================
+    // 1. DATA: 7 SWISS CHEESE LAYERS
+    // ==========================================
+    const cheeseLayers = [
+      {
+        id: 1,
+        date: '2026年06月',
+        shortName: '第1层：供应链与工具获取防线',
+        title: '供应链安全与外部AI工具下载防线',
+        holeLabel: '篡改版 Homebrew 暴露钱包团队名单',
+        failureType: '显性失误 + 隐性情报泄露',
+        actor: '钱包开发运维工程师 A',
+        holeOpen: true,
+        defense: '币安部署了终端安全监控（EDR）与应急响应机制。当工程师 A 通过搜索引擎下载遭篡改的 Homebrew 安装程序（为安装一款热门 AI 编程工具）时，安全团队主动检测到了异常，立即更换了该设备并轮换了所有相关凭证。',
+        hole: '虽然设备被换、密码被改（挡住了6月份的直接入侵），但工程师 A 的岗位信息，以及其所在的“钱包基础设施团队”相关同事名单已经不可逆地暴露给攻击者！情报一旦泄露无法撤回，成为后续鱼叉式社工攻击的精准制导名单。',
+        analogy: '就像金库值班经理 A 不小心点进了一个假网站，保安虽然立刻收缴了他的旧手机并换了门禁卡，但小偷已经拍下了他手机里的《金库核心钥匙保管员通讯录》。',
+        fix: '完成对所有员工设备的强化安全扫描；加大开发环境安全投入，严控第三方开源包与开发工具下载渠道。'
+      },
+      {
+        id: 2,
+        date: '2026年09月',
+        shortName: '第2层：人员反社工与终端隔离防线',
+        title: '员工反社会工程与“办公/求职物理隔离”防线',
+        holeLabel: '逼真双轮假面试 + 工作电脑运行作业',
+        failureType: '高阶社会工程 + 显性违规操作',
+        actor: '软件工程师 B + 冒充HR/CEO的DPRK攻击者',
+        holeOpen: true,
+        defense: '常规员工安全意识培训（防范钓鱼链接、虚假招聘与未知附件），以及不在生产办公设备上运行外部非授信代码的规范。',
+        hole: '工程师 B 在正规求职平台简历中写明了“币安工作经历”。攻击者冒充“项目总监”联系，安排了两轮极具欺骗性的面试：第1轮由假 HR 进行实时视频面试，甚至主动分享带有个人生活照片和视频的社交媒体账号建立深度信任；第2轮由假 CEO 在热门聊天软件上进行，诱导工程师 B 将包含恶意代码仓库的“面试作业”下载到【工作电脑】中安装执行。',
+        analogy: '骗子为了进大院，没有硬闯保安亭，而是假装高薪猎头找大院里的员工 B 视频聊天、加朋友圈看生活照，聊熟后让他把一份“入职测试题”拿回公司电脑上打开。',
+        fix: '加强设备管控与行为异常监控；针对2026年以来已拦截的57起DPRK威胁特征（虚假面试、伪造视频会议、篡改软件包）强化全员反社工防线。'
+      },
+      {
+        id: 3,
+        date: '2026年09月',
+        shortName: '第3层：终端EDR与开发环境完整性防线',
+        title: '终端安全防护 (EDR) 与开发者工具链完整性防线',
+        holeLabel: '0-day 混淆脚本静默替换 pyenv (3,414B)',
+        failureType: '零日漏洞规避 (0-Day Evasion)',
+        actor: '工程师 B 的工作电脑 (/opt/homebrew/.../pyenv)',
+        holeOpen: true,
+        defense: '工作电脑上安装的终端安全防护工具（EDR/杀毒软件），负责实时拦截恶意脚本、木马植入与异常外联通信。',
+        hole: '恶意代码在“面试作业”安装过程中触发，采用高度复杂的代码混淆与零日（0-day）规避检测技术：将正规开发工具组件 `/opt/homebrew/Cellar/pyenv/2.8.0/libexec/pyenv`（3,344字节）删除，替换为仅大70字节的恶意版本（3,414字节），重建 `/opt/homebrew/bin/pyenv` 软链接并派生 `zsh` 连接外部C2服务器，同时清除入侵痕迹。当时终端安全工具完全未能检出。',
+        analogy: '病毒没有长成张牙舞爪的怪兽，而是把自己伪装成程序员每天必用的合法工具 `pyenv`，只比原版多塞了70个字母的暗语，还在进屋后把脚印擦得干干净净，监控探头以为是正常办公。',
+        fix: '更换所有受影响设备；完成全员设备强化安全扫描；扩展并增强基于 AI 的行为异常检测能力，从“查已知病毒特征”升级为“查异常行为链”。'
+      },
+      {
+        id: 4,
+        date: '2026年10月20日',
+        shortName: '第4层：内部AI工具与内网微隔离防线',
+        title: '内部 AI 工具访问控制与研发网横向隔离防线',
+        holeLabel: '内部AI工具沦为横向渗透跳板 (B→A & C)',
+        failureType: '隐性架构脆弱性 (AI Pivot Point)',
+        actor: '内部 AI 工具 → 工程师 A 与工程师 C 的设备',
+        holeOpen: true,
+        defense: '普通软件工程师（B）与核心钱包基础设施团队（A、C）之间本应存在严格的权限与网络隔离，单台非核心办公电脑沦陷不应直接危及钱包团队。',
+        hole: '攻击者利用遭入侵的工程师 B 的电脑，将【内部 AI 工具】作为超级跳板，跨设备控制了钱包开发运维工程师 A（6月份已暴露身份）以及另一名钱包软件工程师 C 的设备！内部 AI 工具因具备广泛的终端连接或上下文协同能力，反而成了内网横向移动的“特洛伊木马高速公路”。',
+        analogy: '公司内部装了一套智能管道系统（内部AI工具）方便大家传文件。小偷进了一个普通员工B的房间后，顺着这套没有装防盗网的AI管道，直接爬进了管金库钥匙的A和C的房间！',
+        fix: '重建受影响的内部 AI 工具，并全面加强相关访问控制；筹备设立聚焦“区块链环境中 AI 安全”的专项研究基金。'
+      },
+      {
+        id: 5,
+        date: '2026年10月20日–30日',
+        shortName: '第5层：高权凭证管理与容器部署防线',
+        title: '容器部署权限令牌 (Token) 管控与多因素审批防线',
+        holeLabel: 'A电脑留存容器部署Token，被跨机滥用',
+        failureType: '隐性权限与凭证管理缺陷',
+        actor: '工程师 A 的容器令牌 + 工程师 C 的电脑',
+        holeOpen: true,
+        defense: '生产环境容器部署应遵循最小权限原则、短生命周期动态令牌（JIT Token）、硬件设备绑定及多人审批复核。',
+        hole: '攻击者控制工程师 A 的新电脑后，很快发现其电脑上存有一个【具有容器部署权限的令牌】。10月30日凌晨 01:15–03:56，攻击者登录软件工程师 C 的电脑，使用从工程师 A 处窃取的凭证成功部署了一个恶意容器并执行恶意脚本。凭证既能在本地被窃取，又能跨设备（在C的电脑上）无感使用。',
+        analogy: '管金库的工程师 A 把一把“能往金库机房塞新机器的万能钥匙（容器部署Token）”放在了自己抽屉里；小偷从A抽屉偷走钥匙后，跑到工程师C的工位上刷卡，把一台抽水机塞进了金库机房。',
+        fix: '停用所有受影响工程师相关的凭证和令牌；在全新环境中重建受影响的钱包系统，阻断任何残留后门与凭证复用。'
+      },
+      {
+        id: 6,
+        date: '2026年10月30日 04:05',
+        shortName: '第6层：钱包签名服务与提现风控防线',
+        title: '内部钱包签名服务访问控制与正常提现风控防线',
+        holeLabel: '直接调用内部签名服务，绕过正常提现风控',
+        failureType: '核心服务边界与风控绕过',
+        actor: '内部钱包签名服务 + 5大公链热钱包',
+        holeOpen: true,
+        defense: '正常用户提现流程设有多重风控规则、额度限制、反洗钱及异常行为拦截。',
+        hole: '攻击者通过恶意容器获得了【内部钱包签名服务】的未经授权访问权限，直接绕过上游正常的提现业务流程发起底层签名交易！04:05–04:09短短4分钟内，5个热钱包转出 2.3346亿枚 XRP，同时转出 97.05万 SOL、4,420万 OP、18,270 BTC。虽然随后触发了大额转账内部警报，但首波巨额资金已瞬间出链。',
+        analogy: '银行大厅柜台（正常提现流程）本来有严格的身份核验和限额，但小偷钻进后台机房直接控制了“自动盖章机（内部钱包签名服务）”，不经过柜台直接给自己的大额支票疯狂盖章放行！',
+        fix: '在全新环境中重建受影响的钱包系统；进一步加强钱包服务风险控制系统；复盘签名策略覆盖范围及热钱包控制机制。'
+      },
+      {
+        id: 7,
+        date: '2026年10月30日 04:09–08:10',
+        shortName: '第7层：EIP-7702链上授权与MPC应急熔断防线',
+        title: '以太坊 EIP-7702 委托控制与 MPC 紧急撤销响应防线',
+        holeLabel: '50笔交易绑EIP-7702后门，MPC无单钥难秒撤',
+        failureType: '新协议特性滥用 + 应急响应机制滞后',
+        actor: 'EIP-7702 智能合约委托 + MPC 热钱包 + Binance14',
+        holeOpen: true,
+        defense: '常规应急响应预案：一旦发现热钱包异常，立即执行“暂停提现”和“关闭热钱包服务”即可切断资金外流。',
+        hole: '两大技术复杂性叠加导致“关闸仍漏水”长达4小时：1) 攻击者提交50笔签名交易操纵账户 nonce，利用以太坊 EIP-7702 机制将热钱包部分执行权限委托给恶意智能合约。该授权已写在链上，独立于币安提现系统运行，关停后台也无法阻止攻击者在链上直接转走资产；2) 受影响热钱包采用多方安全计算（MPC）技术，不存在单一私钥可立即签发撤销交易，团队被迫耗费数小时专门设计并执行特殊撤销流程，直到 07:56 最后一笔 2,961.9 ETH 确认，08:10 才由 Binance14 向空地址发新授权彻底清除。',
+        analogy: '保安发现失窃后立刻拉下了金库大门总闸（暂停提现+关闭热钱包），却绝望地发现小偷刚才已经利用区块链新规矩（EIP-7702）在金库墙外接了一根“合法外部抽水管”；更要命的是，要拆掉这根管子必须启动多人分片钥匙（MPC）重新打造一把专用扳手，足足花了4个小时（到早上08:10）才彻底焊死！',
+        fix: '08:10通过Binance14热钱包向空地址执行新授权清除EIP-7702委托代码；全面复盘应急响应流程、签名策略覆盖范围（如禁止热钱包签发未授权EIP-7702类型交易）及MPC紧急熔断机制。'
+      }
+    ];
+
+    let selectedLayerIndex = 0;
+    let eli5Enabled = true;
+
+    // ==========================================
+    // 2. RENDER SWISS CHEESE STACK & INSPECTOR
+    // ==========================================
+    function renderCheeseStack() {
+      const container = document.getElementById('cheese-stack-container');
+      container.innerHTML = '';
+
+      // Find first blocked layer (if any)
+      let firstBlockedIndex = cheeseLayers.findIndex(l => !l.holeOpen);
+      let openCount = cheeseLayers.filter(l => l.holeOpen).length;
+      document.getElementById('open-holes-counter').textContent = `当前开启孔洞: ${openCount}/7`;
+
+      // Update Top Status Banner
+      const banner = document.getElementById('sim-status-banner');
+      const icon = document.getElementById('sim-status-icon');
+      const title = document.getElementById('sim-status-title');
+      const desc = document.getElementById('sim-status-desc');
+      const badge = document.getElementById('sim-badge');
+
+      if (firstBlockedIndex === -1) {
+        // All 7 holes open -> Full breach
+        banner.className = 'rounded-xl p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-red-500/10 border-red-500/40';
+        icon.className = 'w-10 h-10 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center text-xl font-bold shrink-0';
+        icon.textContent = '⚡';
+        title.className = 'font-bold text-sm sm:text-base text-red-600 dark:text-red-400';
+        title.textContent = '警报：7 层防御孔洞完全对齐！攻击激光直穿热钱包核心！';
+        desc.textContent = '穿透深度：7 / 7 层 | 造成后果：63.4亿美元资产涉案（其中28.5亿美元被紧急冻结拦截）';
+        badge.className = 'inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-red-500 text-white';
+        badge.textContent = '防线击穿 (BREACHED)';
+      } else {
+        const blockedLayer = cheeseLayers[firstBlockedIndex];
+        banner.className = 'rounded-xl p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-500/10 border-emerald-500/40';
+        icon.className = 'w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-xl font-bold shrink-0';
+        icon.textContent = '🛡️';
+        title.className = 'font-bold text-sm sm:text-base text-emerald-600 dark:text-emerald-400';
+        title.textContent = `攻击已被阻断！威胁光线在【${blockedLayer.shortName}】被成功拦截`;
+        desc.textContent = `穿透深度：${firstBlockedIndex} / 7 层 | 只要斩断攻击链中的任意一环，63.4亿美元盗窃便无法完成闭环`;
+        badge.className = 'inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white';
+        badge.textContent = '成功防御 (BLOCKED)';
+      }
+
+      cheeseLayers.forEach((layer, idx) => {
+        const isSelected = idx === selectedLayerIndex;
+        // Determine if laser reaches this layer and passes through it
+        const laserReachesHere = (firstBlockedIndex === -1) || (idx <= firstBlockedIndex);
+        const laserPassesHere = layer.holeOpen && laserReachesHere;
+
+        const row = document.createElement('div');
+        row.className = `cheese-slice cursor-pointer rounded-xl p-3.5 border transition relative ${
+          isSelected
+            ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/10 shadow-md ring-1 ring-amber-500/50'
+            : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+        }`;
+
+        row.addEventListener('click', () => {
+          selectedLayerIndex = idx;
+          renderCheeseStack();
+          renderLayerDetail();
+        });
+
+        row.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <!-- Layer Number & Cheese Visual -->
+              <div class="w-10 h-10 rounded-lg flex flex-col items-center justify-center shrink-0 font-mono text-xs font-bold border ${
+                layer.holeOpen
+                  ? 'bg-amber-400/20 border-amber-500/50 text-amber-600 dark:text-amber-300'
+                  : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-300'
+              }">
+                <span>L${layer.id}</span>
+                <span class="text-[10px]">${layer.holeOpen ? '🕳️孔洞' : '🛡️加固'}</span>
+              </div>
+
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-bold text-xs sm:text-sm truncate">${layer.shortName}</span>
+                  <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">${layer.date}</span>
+                </div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                  ${layer.holeOpen ? `<span class="text-red-500 dark:text-red-400 font-medium">漏洞：${layer.holeLabel}</span>` : `<span class="text-emerald-600 dark:text-emerald-400 font-medium">已封堵：该层孔洞已闭合，阻断攻击传导</span>`}
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Interactive Hole Visual + Toggle Button -->
+            <div class="flex items-center gap-3 shrink-0">
+              <!-- Visual Alignment Track -->
+              <div class="hidden sm:flex items-center w-28 h-7 rounded-lg bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 px-2 relative overflow-hidden" title="奶酪孔洞与攻击激光对齐状态">
+                <!-- Cheese solid bar with hole -->
+                <div class="w-full h-3 rounded bg-amber-400/70 flex items-center justify-center relative">
+                  <div class="w-6 h-4 rounded-full transition-all duration-300 ${
+                    layer.holeOpen
+                      ? 'bg-slate-900 border border-red-500/70 translate-x-0'
+                      : 'bg-emerald-500 border border-emerald-300 translate-x-8 scale-50'
+                  }"></div>
+                </div>
+                <!-- Vertical Laser Indicator -->
+                ${
+                  laserPassesHere
+                    ? `<div class="w-1.5 h-full bg-red-500 absolute left-1/2 -translate-x-1/2 laser-active"></div>`
+                    : (laserReachesHere && !layer.holeOpen)
+                      ? `<div class="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute left-1/2 -translate-x-1/2 shadow"></div>`
+                      : ''
+                }
+              </div>
+
+              <button type="button" data-toggle-idx="${idx}" class="layer-hole-toggle px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                layer.holeOpen
+                  ? 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/25'
+                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+              }">
+                ${layer.holeOpen ? '点击堵住孔洞' : '点击打开孔洞'}
+              </button>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(row);
+      });
+
+      // Attach toggle handlers without triggering card selection jump if desired
+      document.querySelectorAll('.layer-hole-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-toggle-idx'), 10);
+          cheeseLayers[idx].holeOpen = !cheeseLayers[idx].holeOpen;
+          selectedLayerIndex = idx;
+          renderCheeseStack();
+          renderLayerDetail();
+        });
+      });
+    }
+
+    function renderLayerDetail() {
+      const layer = cheeseLayers[selectedLayerIndex];
+      document.getElementById('detail-layer-num').textContent = `第 ${layer.id} 层奶酪`;
+      document.getElementById('detail-date').textContent = layer.date;
+      document.getElementById('detail-title').textContent = layer.title;
+      document.getElementById('detail-failure-type').textContent = layer.failureType;
+      document.getElementById('detail-actor').textContent = layer.actor;
+      document.getElementById('detail-defense').textContent = layer.defense;
+      document.getElementById('detail-hole').textContent = layer.hole;
+      document.getElementById('detail-analogy').textContent = layer.analogy;
+      document.getElementById('detail-fix').textContent = layer.fix;
+      document.getElementById('detail-step-indicator').textContent = `${layer.id} / 7`;
+
+      const toggleBtn = document.getElementById('btn-toggle-current-hole');
+      if (layer.holeOpen) {
+        toggleBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border transition shrink-0 bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/25';
+        toggleBtn.textContent = '当前：🕳️ 孔洞开启（点击封堵）';
+      } else {
+        toggleBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border transition shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25';
+        toggleBtn.textContent = '当前：🛡️ 孔洞已封堵（点击开启）';
+      }
+    }
+
+    // ==========================================
+    // 3. TECHNICAL LAB: PYENV & EIP-7702
+    // ==========================================
+    const pyenvSteps = [
+      {
+        cmd: 'CREATE  /opt/homebrew/Cellar/pyenv/2.8.0/libexec/pyenv_',
+        badge: '步骤 1：创建影子文件',
+        desc: '在 Homebrew 的 pyenv 安装目录下创建一个带下划线的临时文件 pyenv_，避开针对原文件的直接写入锁定。'
+      },
+      {
+        cmd: 'MODIFY  pyenv_ → 3,414 B',
+        badge: '步骤 2：写入 3,414 字节恶意载荷',
+        desc: '向临时文件写入包含代码混淆和外部服务器(C2)通信逻辑的恶意脚本，文件大小定格为 3,414 字节（仅比正版多 70 字节）。'
+      },
+      {
+        cmd: 'DELETE  .../libexec/pyenv  (3,344 B)      ← remove the valid pyenv',
+        badge: '步骤 3：删除 3,344 字节正版文件',
+        desc: '删除原本合法的 3,344 字节 pyenv 可执行脚本。'
+      },
+      {
+        cmd: 'RENAME  pyenv_ → pyenv  (3,414 B)  ← replace it with a malicious version',
+        badge: '步骤 4：原子重命名李代桃僵',
+        desc: '将 3,414 字节的 pyenv_ 重命名为 pyenv，完成无缝调包。'
+      },
+      {
+        cmd: 'DELETE  /opt/homebrew/bin/pyenv  (3,414 B)',
+        badge: '步骤 5：清理旧符号链接',
+        desc: '删除 /opt/homebrew/bin/ 下的原符号链接，准备重新指向恶意版本。'
+      },
+      {
+        cmd: 'ln  (create a new symlink)  +  spawn zsh',
+        badge: '步骤 6：重建软链接并拉起 zsh 后门',
+        desc: '创建新的符号链接并立即派生 zsh 进程执行命令，建立与 DPRK 外部控制服务器的持久化通信，同时抹除入侵痕迹。'
+      }
+    ];
+
+    let pyenvReplayTimer = null;
+
+    function renderPyenvSteps(limit = pyenvSteps.length) {
+      const box = document.getElementById('pyenv-terminal-steps');
+      box.innerHTML = '';
+      for (let i = 0; i < limit; i++) {
+        const s = pyenvSteps[i];
+        const div = document.createElement('div');
+        div.className = 'p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1 transition-all';
+        div.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-amber-400 font-bold">$ ${s.cmd}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300 border border-red-500/30 shrink-0">${s.badge}</span>
+          </div>
+          <div class="text-slate-400 text-[11px] font-sans pl-3 border-l-2 border-slate-700">${s.desc}</div>
+        `;
+        box.appendChild(div);
+      }
+    }
+
+    const eipStagesData = {
+      '1': {
+        title: '阶段 1：攻击者如何用 50 笔交易给币安热钱包安上“链上自动抽水泵”（EIP-7702）？',
+        points: [
+          '<strong>什么是 EIP-7702？</strong> 这是以太坊的一项账户抽象新机制，允许普通外部账户（EOA，即热钱包地址）在不暴露私钥的情况下，通过一笔特殊授权签名，将账户的<strong>部分执行权限委托给某个智能合约</strong>（让普通钱包临时拥有智能合约代码逻辑）。',
+          '<strong>攻击者做了什么？</strong> 攻击者利用入侵获得的内部钱包签名服务权限，提交了 <strong>50 笔签名的交易</strong>，用来操纵账户随机数（Account Nonce），并在链上正式建立了指向攻击者恶意智能合约的 EIP-7702 委托授权。',
+          '<strong>致命后果：</strong> 一旦这笔委托授权写进以太坊区块链，攻击者的恶意合约就获得了对币安受影响热钱包的直接执行权限！'
+        ],
+        analogy: '大白话：小偷趁着控制了币安后台“自动盖章机”的几分钟，不仅直接搬走了现金（XRP/SOL/BTC），还顺手在以太坊公证处盖了50个章，签了一份《永久委托书（EIP-7702）》——规定以后小偷自己的机器人无需再经过币安后台，就能直接从币安以太坊热钱包里划款！',
+        diagramState: 'compromised'
+      },
+      '2': {
+        title: '阶段 2：为什么币安“暂停提现 + 关闭热钱包服务”后，钱还是被继续转走？',
+        points: [
+          '<strong>独立于中心化基础设施运行：</strong> 恶意的 EIP-7702 授权已经存在于以太坊公链上，它的运行完全独立于币安正常的提现基础设施。因此，“暂停提现”和“关闭热钱包服务”只会关掉币安自己的后台大门，<strong>并不会自动使已经存在于链上的授权失效</strong>！',
+          '<strong>MPC（多方安全计算）的双刃剑困境：</strong> 要撤销链上的 EIP-7702 授权，币安必须向链上发送一笔新的覆写授权交易。然而，受影响热钱包采用了 <strong>MPC（多方安全计算）技术</strong>，根本不存在一个可以直接拿来立即签名的“单一私钥”！',
+          '<strong>被迫耗时定制流程：</strong> 安全与工程团队不得不额外耗费宝贵时间，单独设计并执行一套特殊的 MPC 撤销签名流程。在此期间，最后一笔未经授权的 <strong>2,961.9 ETH</strong>（此前已广播并处于待确认状态）于 <strong>07:56 (UTC+8)</strong> 在链上完成最终确认。'
+        ],
+        analogy: '大白话：MPC 就像为了防止内鬼，把一把钥匙劈成3瓣分给3个人保管，平时只允许在标准提现机器里拼合。现在发现墙外被人装了自动抽水管（EIP-7702），标准提现机器又没有“拆水管”这个按钮！工程师们只能现场重新打造一台能把3瓣钥匙拼起来签发“拆管令”的特殊机器，所以从04:05一直忙活到08:10！',
+        diagramState: 'mpc_delay'
+      },
+      '3': {
+        title: '阶段 3：08:10 终极止血——通过 Binance14 向空地址执行新授权清除委托代码',
+        points: [
+          '<strong>08:10 (UTC+8) 关键链上操作：</strong> 币安团队最终完成了特殊 MPC 撤销流程的构建，于 2026年10月30日 08:10，通过 <strong>Binance14</strong> 热钱包向<strong>空地址（Zero Address, 0x000...000）</strong>执行了一笔新的 EIP-7702 授权操作。',
+          '<strong>清除原理：</strong> 根据 EIP-7702 规范，当账户将委托目标重新指向空地址（`0x0000000000000000000000000000000000000000`）时，原有的委托代码即被彻底清空，热钱包恢复为普通账户状态。',
+          '<strong>后续加固：</strong> 07:56 之后未再发现任何未经授权的转账；同时币安联合合作伙伴与执法机构成功冻结/拦截了约 <strong>28.5 亿美元</strong> 的受影响数字资产。'
+        ],
+        analogy: '大白话：早上 08:10，币安终于用特殊流程造好了“拆管专用章”，在链上公证处签发了一份新文件：“把委托人改为空白（空地址）”，瞬间作废了小偷的抽水管道，彻底终结了这场惊心动魄的链上攻防战！',
+        diagramState: 'cleared'
+      }
+    };
+
+    function renderEipStage(stageKey) {
+      const data = eipStagesData[stageKey];
+      const container = document.getElementById('eip-stage-content');
+
+      let badgeColor = stageKey === '1' ? 'red' : stageKey === '2' ? 'amber' : 'emerald';
+      let statusLabel = stageKey === '1' ? '🚨 恶意委托已上链 (04:09+)' : stageKey === '2' ? '⏳ MPC特殊撤销构建中 (04:09–07:56)' : '✅ 委托代码已清除 (08:10)';
+
+      container.innerHTML = `
+        <div class="lg:col-span-6 space-y-4">
+          <div class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-${badgeColor}-500/20 text-${badgeColor}-500 border border-${badgeColor}-500/30">
+            ${statusLabel}
+          </div>
+          <h4 class="text-base sm:text-lg font-extrabold">${data.title}</h4>
+          <ul class="space-y-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 list-disc pl-5 leading-relaxed">
+            ${data.points.map(p => `<li>${p}</li>`).join('')}
+          </ul>
+          <div class="eli5-box p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
+            💡 ${data.analogy}
+          </div>
+        </div>
+
+        <div class="lg:col-span-6 rounded-xl bg-slate-900 border border-slate-800 p-5 text-slate-200 font-mono text-xs space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <span class="font-bold text-amber-400">⛓️ 以太坊链上状态示意图 (EIP-7702 Delegation)</span>
+            <span class="text-[11px] text-slate-400">Account: Binance14 (MPC Hot Wallet)</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+            <div class="p-3 rounded-lg border ${stageKey === '2' ? 'border-slate-700 bg-slate-950/60 opacity-60' : 'border-slate-700 bg-slate-800/60'}">
+              <div class="text-[11px] text-slate-400">币安正常提现系统</div>
+              <div class="text-sm font-bold mt-1 ${stageKey === '1' ? 'text-amber-400' : 'text-red-400'}">
+                ${stageKey === '1' ? '⚠️ 被签名服务绕过' : '🛑 已紧急暂停关停'}
+              </div>
+              <div class="text-[10px] text-slate-500 mt-1">中心化风控层</div>
+            </div>
+
+            <div class="p-3 rounded-lg border-2 ${stageKey === '3' ? 'border-emerald-500 bg-emerald-950/30' : 'border-red-500 bg-red-950/30'}">
+              <div class="text-[11px] text-slate-300">Binance14 链上委托指针</div>
+              <div class="text-xs font-bold mt-1 ${stageKey === '3' ? 'text-emerald-400' : 'text-red-400'}">
+                ${stageKey === '3' ? '0x0000...0000 (空地址)' : '0xMalicious...Contract'}
+              </div>
+              <div class="text-[10px] text-slate-400 mt-1">${stageKey === '3' ? '08:10 清除完毕' : '50笔签名交易操纵Nonce建立'}</div>
+            </div>
+
+            <div class="p-3 rounded-lg border ${stageKey === '3' ? 'border-slate-800 bg-slate-950/40 opacity-50' : 'border-red-500/60 bg-red-950/20'}">
+              <div class="text-[11px] text-slate-400">DPRK 攻击者合约执行</div>
+              <div class="text-sm font-bold mt-1 ${stageKey === '3' ? 'text-emerald-400' : 'text-red-400'}">
+                ${stageKey === '3' ? '🔒 权限彻底失效' : '⚡ 可绕过币安直接划转'}
+              </div>
+              <div class="text-[10px] text-slate-400 mt-1">${stageKey === '2' ? '末笔 2,961.9 ETH 于07:56确认' : '链上独立运行'}</div>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] leading-relaxed text-slate-300">
+            <div class="text-amber-400 font-bold mb-1">// 关键技术复盘结论：</div>
+            ${
+              stageKey === '1'
+                ? '1. 签名服务未对 EIP-7702 类型交易（0x04 SetCodeTransaction）进行白名单策略拦截；<br>2. 攻击者通过连发 50 笔签名交易操控账户 Nonce，确保恶意委托在链上生效。'
+                : stageKey === '2'
+                  ? '1. 传统应急预案假设“关停热钱包服务 = 停止一切签名转出”；<br>2. 但 EIP-7702 把执行权留在了链上合约里，且 MPC 热钱包无单一私钥，必须定制特殊 MPC 签名流程才能发交易覆盖它。'
+                  : '1. 08:10 (UTC+8) 特殊 MPC 撤销交易上链，将 Binance14 的 EIP-7702 委托指向空地址；<br>2. 链上恶意委托代码被清空，历时 4 小时 05 分钟的危机全面受控。'
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // 4. TIMELINE DATA & RENDER
+    // ==========================================
+    const timelineEvents = [
+      {
+        cat: 'prep',
+        time: '2026年 06月',
+        title: '供应链攻击：篡改版 Homebrew 暴露钱包团队情报',
+        actor: '钱包DevOps工程师 A',
+        desc: '工程师 A 为安装热门 AI 编程工具，通过搜索引擎下载了遭篡改的 Homebrew 安装程序。币安安全团队主动检出异常、更换设备并轮换凭证，但工程师 A 的岗位及钱包基础设施团队同事信息已暴露给攻击者。',
+        tag: '第1层奶酪孔洞'
+      },
+      {
+        cat: 'prep',
+        time: '2026年 09月（上旬）',
+        title: '社会工程学第一轮面试：假HR实时视频 + 社媒账号博取信任',
+        actor: '软件工程师 B',
+        desc: '攻击者通过正规求职平台（B在简历中提及币安工作经历）冒充“项目总监”联系工程师 B。第1轮面试由冒充 HR 的人员进行实时视频面试，并分享含个人生活照与视频的社交媒体账号，极具欺骗性。',
+        tag: '第2层奶酪孔洞'
+      },
+      {
+        cat: 'prep',
+        time: '2026年 09月（下旬）',
+        title: '社会工程学第二轮面试：“假CEO”诱导在工作电脑运行恶意作业',
+        actor: '软件工程师 B',
+        desc: '第2轮面试通过热门社交聊天应用进行，自称“虚构公司CEO”的攻击者要求 B 将含代码仓库的“作业”下载到工作电脑。安装时触发零日恶意代码，将 pyenv (3,344B) 替换为恶意版本 (3,414B) 并派生 zsh 回连外部服务器。',
+        tag: '第2 & 3层奶酪孔洞'
+      },
+      {
+        cat: 'prep',
+        time: '2026年 10月20日',
+        title: '内部 AI 工具成为跳板：横向控制工程师 A 与 C，窃取容器令牌',
+        actor: '内部AI工具 → 工程师 A & C',
+        desc: '攻击者利用已被攻陷的工程师 B 电脑，通过币安内部 AI 工具横向控制了钱包开发运维工程师 A 和钱包软件工程师 C 的设备，并在工程师 A 电脑上发现了一个具有容器部署权限的令牌（Token）。',
+        tag: '第4 & 5层奶酪孔洞'
+      },
+      {
+        cat: 'attack',
+        time: '10月30日 01:15 – 03:56',
+        title: '凌晨潜入：登录工程师 C 电脑 + 使用工程师 A 令牌部署恶意容器',
+        actor: '工程师 C 电脑 + A 的凭证',
+        desc: '攻击者在凌晨时段登录软件工程师 C 的电脑，使用从工程师 A 处窃取的容器部署凭证，成功部署了一个容器并执行恶意脚本，渗透获取了内部钱包签名服务访问权限。',
+        tag: '第5 & 6层奶酪孔洞'
+      },
+      {
+        cat: 'attack',
+        time: '10月30日 04:05 – 04:09',
+        title: '首波闪电洗劫：绕过提现流程，4分钟转出 2.3346亿 XRP 及多链资产',
+        actor: '内部钱包签名服务',
+        desc: '攻击者绕过正常提现流程直接发起签名交易：5个热钱包转出 2.3346亿枚 XRP；Solana 和 Optimism 热钱包分别转出约 970,500 枚 SOL 和 4,420万枚 OP。随后币安收到大额转账内部警报并立即启动调查，期间热钱包又转出 18,270 枚 BTC。',
+        tag: '第6层奶酪孔洞'
+      },
+      {
+        cat: 'attack',
+        time: '10月30日 04:09 之后',
+        title: '链上持久化植后门：提交 50 笔签名交易建立 EIP-7702 恶意委托',
+        actor: '以太坊热钱包 & 恶意合约',
+        desc: '攻击者滥用签名服务提交 50 笔签名交易操纵账户 nonce，利用以太坊 EIP-7702 机制将受影响热钱包部分执行权限委托给攻击者控制的智能合约。即便币安立即暂停提现、关闭热钱包服务，链上授权依然独立运行；且因 MPC 架构无单一私钥，需专门设计特殊撤销流程。',
+        tag: '第7层奶酪孔洞'
+      },
+      {
+        cat: 'attack',
+        time: '10月30日 07:56 (UTC+8)',
+        title: '最后一笔未经授权转账确认：2,961.9 ETH',
+        actor: '以太坊网络',
+        desc: '此前已广播至网络并处于待确认状态的最后一笔未经授权转账（2,961.9 ETH）在链上完成最终确认。此后未再发现其他未经授权转账。',
+        tag: '链上失血终点'
+      },
+      {
+        cat: 'attack',
+        time: '10月30日 08:10 (UTC+8)',
+        title: '彻底斩断链上委托：Binance14 向空地址执行新授权清除 EIP-7702',
+        actor: 'Binance14 热钱包 (MPC)',
+        desc: '币安团队完成特殊 MPC 撤销流程执行，通过 Binance14 热钱包向空地址执行了一笔新的授权操作，彻底清除了链上 EIP-7702 委托代码；同时协同合作伙伴共冻结约 28.5 亿美元资产。',
+        tag: '应急止血完成'
+      },
+      {
+        cat: 'recovery',
+        time: '10月31日 (UTC+8)',
+        title: '100% 损失兜底承诺：24小时内完成 98% 受影响代币资产补足',
+        actor: '币安储备金证明 (PoR)',
+        desc: '币安宣布承担全部被盗损失（保留超100%资金覆盖），截至10月31日已完成 98% 受影响代币资产补足（用户可通过储备金证明页面验证），并持续在市场购买剩余低流动性资产。',
+        tag: '用户资产保护'
+      },
+      {
+        cat: 'recovery',
+        time: '11月03日 (UTC+8)',
+        title: '八项安全重建落地 & FBI 确认朝鲜 (DPRK) 责任归属',
+        actor: '币安安全团队 & FBI',
+        desc: '全新环境重建受影响钱包系统与内部 AI 工具、更换设备、停用相关凭证令牌、全员设备强化扫描、增强 AI 行为异常检测与钱包风控；FBI 最新信息确认朝鲜（DPRK）对此事件负责。',
+        tag: '全面加固与溯源'
+      }
+    ];
+
+    function renderTimeline(filter = 'all') {
+      const list = document.getElementById('timeline-list');
+      list.innerHTML = '';
+      const filtered = filter === 'all' ? timelineEvents : timelineEvents.filter(e => e.cat === filter);
+
+      filtered.forEach((item, idx) => {
+        const badgeStyle = item.cat === 'prep'
+          ? 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+          : item.cat === 'attack'
+            ? 'bg-red-500/15 text-red-500 border-red-500/30'
+            : 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30';
+
+        const card = document.createElement('div');
+        card.className = 'p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] shadow-sm flex flex-col justify-between gap-3';
+        card.innerHTML = `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <span class="font-mono text-xs font-bold px-2.5 py-1 rounded-lg ${badgeStyle} border">${item.time}</span>
+              <span class="text-xs font-semibold text-slate-400">${item.tag}</span>
+            </div>
+            <h4 class="font-bold text-sm sm:text-base">${item.title}</h4>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${item.desc}</p>
+          </div>
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+            <span>涉及主体：<strong class="text-slate-600 dark:text-slate-300">${item.actor}</strong></span>
+            <span>节点 #${idx + 1}</span>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    // ==========================================
+    // 5. REMEDIATION MATRIX DATA & RENDER
+    // ==========================================
+    const remediations = [
+      {
+        title: '1. 全新环境重建受影响钱包系统',
+        layer: '对应第 6 & 7 层奶酪',
+        status: '截至11月3日已完成',
+        desc: '彻底废弃被渗透过的旧运行环境，在洁净环境中重构热钱包及签名基础设施，杜绝任何潜伏容器或残留后门。'
+      },
+      {
+        title: '2. 重建内部 AI 工具并加强访问控制',
+        layer: '对应第 4 层奶酪',
+        status: '截至11月3日已完成',
+        desc: '针对攻击者利用工程师B电脑通过内部AI工具横向控制A和C的漏洞，重构内部AI工具架构并实施严格的零信任访问控制。'
+      },
+      {
+        title: '3. 更换受影响的终端设备',
+        layer: '对应第 2 & 3 层奶酪',
+        status: '截至11月3日已完成',
+        desc: '对工程师 A、B、C 及所有涉及攻击路径的终端硬件进行物理更换，消除类似 pyenv 底层劫持的持久化驻留风险。'
+      },
+      {
+        title: '4. 停用受影响工程师相关的凭证和令牌',
+        layer: '对应第 5 层奶酪',
+        status: '截至11月3日已完成',
+        desc: '全面吊销并轮换相关工程师名下的容器部署令牌（Token）、API密钥及内部访问凭证，阻断跨机凭证盗用。'
+      },
+      {
+        title: '5. 完成对所有员工设备的强化安全扫描',
+        layer: '对应第 1、2 & 3 层奶酪',
+        status: '截至11月3日已完成',
+        desc: '在全公司范围内排查是否存在其他被篡改的开发工具（如 Homebrew、pyenv 变种）或未知社工木马。'
+      },
+      {
+        title: '6. 增强基于 AI 的行为异常检测能力',
+        layer: '对应第 3、4 & 5 层奶酪',
+        status: '截至11月3日已完成',
+        desc: '弥补传统静态特征码无法识别 0-day 代码混淆及合法凭证跨机登录（登录C电脑用A令牌）的短板，实时捕捉异常行为序列。'
+      },
+      {
+        title: '7. 加强钱包服务的风险控制措施',
+        layer: '对应第 6 & 7 层奶酪',
+        status: '截至11月3日已完成',
+        desc: '复盘签名策略覆盖范围、热钱包控制机制及对 EIP-7702 等特殊链上委托授权交易的拦截与 MPC 快速熔断流程。'
+      },
+      {
+        title: '8. 跨机构协同追踪并冻结 28.5 亿美元资产',
+        layer: '对应灾后止损防线',
+        status: '已拦截约 $28.5B',
+        desc: '与美国FBI等执法部门、区块链情报机构及公链/项目方合作伙伴紧密协作，成功冻结或拦截约 44.95% 的涉案资产。'
+      },
+      {
+        title: '9. 100% 储备金兜底与 98% 代币快速补足',
+        layer: '对应用户信任与偿付防线',
+        status: '10月31日已达 98%',
+        desc: '币安动用自有超100%储备金全额承担损失，事发次日即补足98%受影响代币并开放储备金证明（PoR）验证，防止挤兑恐慌。'
+      }
+    ];
+
+    function renderRemediations(query = '') {
+      const grid = document.getElementById('remediation-grid');
+      grid.innerHTML = '';
+      const q = query.trim().toLowerCase();
+      const items = !q
+        ? remediations
+        : remediations.filter(r =>
+            r.title.toLowerCase().includes(q) ||
+            r.layer.toLowerCase().includes(q) ||
+            r.desc.toLowerCase().includes(q)
+          );
+
+      if (items.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-8 text-sm text-slate-400">未找到匹配的加固措施，请尝试搜索“AI”、“钱包”、“令牌”或“冻结”。</div>`;
+        return;
+      }
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121721] space-y-2 hover:border-amber-500/50 transition';
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">${item.layer}</span>
+            <span class="text-[11px] font-medium text-emerald-500">✓ ${item.status}</span>
+          </div>
+          <h4 class="font-bold text-sm">${item.title}</h4>
+          <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${item.desc}</p>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // ==========================================
+    // 6. CHARTS INITIALIZATION
+    // ==========================================
+    let fundsChart = null;
+    let tokensChart = null;
+
+    function initCharts() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#CBD5E1' : '#334155';
+      const gridColor = isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(148, 163, 184, 0.25)';
+
+      const ctxFunds = document.getElementById('chart-funds').getContext('2d');
+      if (fundsChart) fundsChart.destroy();
+      fundsChart = new Chart(ctxFunds, {
+        type: 'doughnut',
+        data: {
+          labels: ['已冻结 / 成功拦截 ($28.5亿)', '净流出敞口 · 由币安100%兜底 ($34.9亿)'],
+          datasets: [{
+            data: [28.5, 34.9],
+            backgroundColor: ['#10B981', '#F59E0B'],
+            borderColor: isDark ? '#121721' : '#FFFFFF',
+            borderWidth: 3,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '64%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: textColor, font: { size: 11 }, padding: 14 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const val = ctx.parsed;
+                  const pct = ((val / 63.4) * 100).toFixed(1);
+                  return ` ${ctx.label}: $${val} 亿美元 (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const ctxTokens = document.getElementById('chart-tokens').getContext('2d');
+      if (tokensChart) tokensChart.destroy();
+      tokensChart = new Chart(ctxTokens, {
+        type: 'bar',
+        data: {
+          labels: ['XRP (亿枚)', 'OP (千万枚)', 'SOL (十万枚)', 'BTC (万枚)', '末笔确认 ETH (千枚)'],
+          datasets: [{
+            label: '被盗资产数量折算（按展示量级标准化对比）',
+            data: [2.3346, 4.42, 9.705, 1.827, 2.9619],
+            backgroundColor: [
+              'rgba(239, 68, 68, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(168, 85, 247, 0.8)',
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(16, 185, 129, 0.8)'
+            ],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
+            y: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const rawText = [
+                    '2.3346 亿枚 XRP (5个热钱包 04:05–04:09转出)',
+                    '4,420 万枚 OP (Optimism 热钱包)',
+                    '约 970,500 枚 SOL (Solana 热钱包)',
+                    '18,270 枚 BTC (比特币热钱包)',
+                    '2,961.9 枚 ETH (07:56 最终确认末笔 + 50笔EIP-7702签名)'
+                  ];
+                  return ' ' + rawText[ctx.dataIndex];
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ==========================================
+    // 7. EVENT LISTENERS & INITIALIZATION
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      renderCheeseStack();
+      renderLayerDetail();
+      renderPyenvSteps();
+      renderEipStage('1');
+      renderTimeline('all');
+      renderRemediations('');
+      initCharts();
+
+      // Simulator Presets
+      document.getElementById('preset-incident').addEventListener('click', () => {
+        cheeseLayers.forEach(l => { l.holeOpen = true; });
+        renderCheeseStack();
+        renderLayerDetail();
+      });
+
+      document.getElementById('preset-57').addEventListener('click', () => {
+        // In previous 57 DPRK attempts, holes were not aligned (e.g., Layer 2, 3, 4, 6 blocked)
+        cheeseLayers.forEach((l, i) => { l.holeOpen = (i === 0 || i === 4); });
+        renderCheeseStack();
+        renderLayerDetail();
+      });
+
+      document.getElementById('preset-remediated').addEventListener('click', () => {
+        cheeseLayers.forEach(l => { l.holeOpen = false; });
+        renderCheeseStack();
+        renderLayerDetail();
+      });
+
+      // Inspector Controls
+      document.getElementById('btn-toggle-current-hole').addEventListener('click', () => {
+        cheeseLayers[selectedLayerIndex].holeOpen = !cheeseLayers[selectedLayerIndex].holeOpen;
+        renderCheeseStack();
+        renderLayerDetail();
+      });
+
+      document.getElementById('btn-prev-layer').addEventListener('click', () => {
+        selectedLayerIndex = (selectedLayerIndex - 1 + cheeseLayers.length) % cheeseLayers.length;
+        renderCheeseStack();
+        renderLayerDetail();
+      });
+
+      document.getElementById('btn-next-layer').addEventListener('click', () => {
+        selectedLayerIndex = (selectedLayerIndex + 1) % cheeseLayers.length;
+        renderCheeseStack();
+        renderLayerDetail();
+      });
+
+      // Tech Deep-Dive Tabs
+      document.querySelectorAll('.tech-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.getAttribute('data-tech-tab');
+          document.querySelectorAll('.tech-tab-btn').forEach(b => {
+            b.className = 'tech-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition';
+          });
+          btn.className = 'tech-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 shadow-sm transition';
+
+          document.querySelectorAll('.tech-tab-panel').forEach(panel => {
+            panel.classList.add('hidden');
+          });
+          document.getElementById(target).classList.remove('hidden');
+        });
+      });
+
+      // pyenv Replay Buttons
+      document.getElementById('btn-replay-pyenv').addEventListener('click', () => {
+        if (pyenvReplayTimer) clearInterval(pyenvReplayTimer);
+        let step = 1;
+        renderPyenvSteps(step);
+        pyenvReplayTimer = setInterval(() => {
+          step++;
+          if (step <= pyenvSteps.length) {
+            renderPyenvSteps(step);
+          } else {
+            clearInterval(pyenvReplayTimer);
+          }
+        }, 650);
+      });
+
+      document.getElementById('btn-reset-pyenv').addEventListener('click', () => {
+        if (pyenvReplayTimer) clearInterval(pyenvReplayTimer);
+        renderPyenvSteps(pyenvSteps.length);
+      });
+
+      // EIP-7702 Stage Buttons
+      document.querySelectorAll('.eip-stage-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const stage = btn.getAttribute('data-eip-stage');
+          document.querySelectorAll('.eip-stage-btn').forEach(b => {
+            b.className = 'eip-stage-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
+          });
+          btn.className = 'eip-stage-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-slate-950';
+          renderEipStage(stage);
+        });
+      });
+
+      // Timeline Filter Buttons
+      document.querySelectorAll('.tl-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const filter = btn.getAttribute('data-tl-filter');
+          document.querySelectorAll('.tl-filter-btn').forEach(b => {
+            b.className = 'tl-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
+          });
+          btn.className = 'tl-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 text-slate-950';
+          renderTimeline(filter);
+        });
+      });
+
+      // Remediation Search
+      document.getElementById('remediation-search').addEventListener('input', (e) => {
+        renderRemediations(e.target.value);
+      });
+
+      // ELI5 Toggle
+      document.getElementById('btn-eli5-toggle').addEventListener('click', () => {
+        eli5Enabled = !eli5Enabled;
+        document.getElementById('eli5-label').textContent = eli5Enabled ? '大白话解读：开启' : '大白话解读：隐藏';
+        document.querySelectorAll('.eli5-box').forEach(el => {
+          if (eli5Enabled) {
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        });
+      });
+
+      // Theme Toggle
+      document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+        const html = document.documentElement;
+        html.classList.toggle('dark');
+        const isDark = html.classList.contains('dark');
+        document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+        initCharts();
+      });
+    });
+  </script>
+</body>
+</html>
